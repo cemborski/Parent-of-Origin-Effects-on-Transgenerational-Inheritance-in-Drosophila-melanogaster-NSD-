@@ -1,0 +1,943 @@
+---
+title: "Ch3 Stats for Github"
+author: "Carmen Emborski"
+date: "1/28/2018"
+output: html_document
+---
+
+Packages Used:
+```{r}
+library(RCurl)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(RColorBrewer)
+library(reshape)
+library(car)
+library(lmtest)
+library(tidyr)
+library(dplyr)
+library(plyr)
+library(broom)
+library(boot)
+library(nlme)
+library(multcomp)
+library(ggsignif)
+```
+
+Data
+```{r, echo=FALSE}
+setwd("~/Dropbox/Shared with Sasha/Used Stats/Final Stats All Chapters/Chapter 3 Stats (MP)/NSD/")
+
+data <- read.csv(text=getURL("https://raw.githubusercontent.com/cemborski/Parent-of-Origin-Effects-on-Transgenerational-Inheritance-in-Drosophila-melanogaster-NSD-/master/NSD%20Data.csv"), header=T)
+
+
+head(data)
+```
+
+Treatment Contrasts relative to CD:
+```{r, echo=FALSE}
+dataN <- data
+dataN$Sex <- factor(dataN$Sex, levels=c("female", "male"))
+dataN$Crosses <- factor(dataN$Crosses, levels=c("McPc", "MnPn", "MnPc", "McPn"))
+
+Weight1.F.Mod <- glm(Sugar.Weight ~ Sex*Crosses, data=subset(dataN, Generation=="F1"))
+Weight2.F.Mod <- glm(Sugar.Weight ~ Sex*Crosses, data=subset(dataN, Generation=="F2"))
+Weight3.F.Mod <- glm(Sugar.Weight ~ Sex*Crosses, data=subset(dataN, Generation=="F1"))
+Weight.F.results.df <- rbind(
+      tidy(Weight1.F.Mod) %>% mutate(generation = "F1"),
+      tidy(Weight2.F.Mod) %>% mutate(generation = "F2"),
+      tidy(Weight3.F.Mod) %>% mutate(generation = "F3")) %>%
+  filter(!grepl("Sexmale", term))  %>% 
+  filter(grepl("Crosses", term)) %>%
+  mutate(metabolite = "Weight") %>% 
+  mutate(sex = "female") %>%
+  mutate(exposure = ifelse(grepl("MnPc", term), "Maternal", ifelse(grepl("McPn", term), "Paternal", "Both")))
+
+Ta.1F.Mod <- glm(TAG ~ Fat.Weight + Sex*Crosses, data=subset(dataN, Generation=="F1"))
+Ta.2F.Mod <- glm(TAG ~ Fat.Weight + Sex*Crosses, data=subset(dataN, Generation=="F2"))
+Ta.3F.Mod <- glm(TAG ~ Fat.Weight + Sex*Crosses, data=subset(dataN, Generation=="F3"))
+Ta.F.results.df <- rbind(
+      tidy(Ta.1F.Mod) %>% mutate(generation = "F1"),
+      tidy(Ta.2F.Mod) %>% mutate(generation = "F2"),
+      tidy(Ta.3F.Mod) %>% mutate(generation = "F3")) %>%
+  filter(!grepl("Sexmale", term))  %>% 
+  filter(grepl("Crosses", term)) %>%
+  mutate(metabolite = "TAG") %>% 
+  mutate(sex = "female") %>%
+  mutate(exposure = ifelse(grepl("MnPc", term), "Maternal", ifelse(grepl("McPn", term), "Paternal", "Both")))
+
+
+Y.1F.Mod <- glm(Glycogen ~ Sugar.Weight + Sex*Crosses, data=subset(dataN,Generation=="F1"))
+Y.2F.Mod <- glm(Glycogen ~ Sugar.Weight + Sex*Crosses, data=subset(dataN,Generation=="F2"))
+Y.3F.Mod <- glm(Glycogen ~ Sugar.Weight + Sex*Crosses, data=subset(dataN,Generation=="F3"))
+Y.F.results.df <- rbind(
+      tidy(Y.1F.Mod) %>% mutate(generation = "F1"),
+      tidy(Y.2F.Mod) %>% mutate(generation = "F2"),
+      tidy(Y.3F.Mod) %>% mutate(generation = "F3")) %>%
+  filter(!grepl("Sexmale", term))  %>% 
+  filter(grepl("Crosses", term)) %>%
+  mutate(metabolite = "Glycogen") %>% 
+  mutate(sex = "female") %>%
+  mutate(exposure = ifelse(grepl("MnPc", term), "Maternal", ifelse(grepl("McPn", term), "Paternal", "Both")))
+
+T.1F.Mod <- glm(Trehalose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN,Generation=="F1"))
+T.2F.Mod <- glm(Trehalose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN,Generation=="F2"))
+T.3F.Mod <- glm(Trehalose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN,Generation=="F3"))
+T.F.results.df <- rbind(
+      tidy(T.1F.Mod) %>% mutate(generation = "F1"),
+      tidy(T.2F.Mod) %>% mutate(generation = "F2"),
+      tidy(T.3F.Mod) %>% mutate(generation = "F3")) %>%
+  filter(!grepl("Sexmale", term))  %>% 
+  filter(grepl("Crosses", term)) %>%
+  mutate(metabolite = "Trehalose") %>% 
+  mutate(sex = "female") %>%
+  mutate(exposure = ifelse(grepl("MnPc", term), "Maternal", ifelse(grepl("McPn", term), "Paternal", "Both")))
+
+
+G.1F.Mod <- glm(Glucose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN,Generation=="F1"))
+G.2F.Mod <- glm(Glucose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN,Generation=="F2"))
+G.3F.Mod <- glm(Glucose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN,Generation=="F3"))
+G.F.results.df <- rbind(
+      tidy(G.1F.Mod) %>% mutate(generation = "F1"),
+      tidy(G.2F.Mod) %>% mutate(generation = "F2"),
+      tidy(G.3F.Mod) %>% mutate(generation = "F3")) %>%
+  filter(!grepl("Sexmale", term))  %>% 
+  filter(grepl("Crosses", term)) %>%
+  mutate(metabolite = "Glucose") %>% 
+  mutate(sex = "female") %>%
+  mutate(exposure = ifelse(grepl("MnPc", term), "Maternal", ifelse(grepl("McPn", term), "Paternal", "Both"))) 
+
+
+Fit.1F.Mod <- glm(Fitness ~ Crosses, data=subset(dataN,Generation=="F1"))
+Fit.2F.Mod <- glm(Fitness ~ Crosses, data=subset(dataN,Generation=="F2"))
+Fit.3F.Mod <- glm(Fitness ~ Crosses, data=subset(dataN,Generation=="F3"))
+Fit.F.results.df <- rbind(
+      tidy(Fit.1F.Mod) %>% mutate(generation = "F1"),
+      tidy(Fit.2F.Mod) %>% mutate(generation = "F2"),
+      tidy(Fit.3F.Mod) %>% mutate(generation = "F3")) %>%
+  filter(!grepl("Sexmale", term))  %>% 
+  filter(grepl("Crosses", term)) %>%
+  mutate(metabolite = "Fitness") %>% 
+  mutate(sex = "female") %>%
+  mutate(exposure = ifelse(grepl("MnPc", term), "Maternal", ifelse(grepl("McPn", term), "Paternal", "Both"))) 
+
+
+
+dataN$Sex <- factor(dataN$Sex, levels=c("male", "female"))
+dataN$Crosses <- factor(dataN$Crosses, levels=c("McPc", "MnPn", "MnPc", "McPn"))
+
+Weight1.M.Mod <- glm(Sugar.Weight ~ Sex*Crosses, data=subset(dataN, Generation=="F1"))
+Weight2.M.Mod <- glm(Sugar.Weight ~ Sex*Crosses, data=subset(dataN, Generation=="F2"))
+Weight3.M.Mod <- glm(Sugar.Weight ~ Sex*Crosses, data=subset(dataN, Generation=="F1"))
+Weight.M.results.df <- rbind(
+      tidy(Weight1.M.Mod) %>% mutate(generation = "F1"),
+      tidy(Weight2.M.Mod) %>% mutate(generation = "F2"),
+      tidy(Weight3.M.Mod) %>% mutate(generation = "F3")) %>%
+  filter(!grepl("Sexfemale", term))  %>% 
+  filter(grepl("Crosses", term)) %>%
+  mutate(metabolite = "Weight") %>% 
+  mutate(sex = "male") %>%
+  mutate(exposure = ifelse(grepl("MnPc", term), "Maternal", ifelse(grepl("McPn", term), "Paternal", "Both"))) 
+
+Ta.1M.Mod <- glm(TAG ~ Fat.Weight + Sex*Crosses, data=subset(dataN,Generation=="F1"))
+Ta.2M.Mod <- glm(TAG ~ Fat.Weight + Sex*Crosses, data=subset(dataN,Generation=="F2"))
+Ta.3M.Mod <- glm(TAG ~ Fat.Weight + Sex*Crosses, data=subset(dataN,Generation=="F3"))
+Ta.M.results.df <- rbind(
+      tidy(Ta.1M.Mod) %>% mutate(generation = "F1"),
+      tidy(Ta.2M.Mod) %>% mutate(generation = "F2"),
+      tidy(Ta.3M.Mod) %>% mutate(generation = "F3")) %>%
+  filter(!grepl("Sexfemale", term))  %>% 
+  filter(grepl("Crosses", term)) %>%
+  mutate(metabolite = "TAG") %>% 
+  mutate(sex = "male") %>%
+  mutate(exposure = ifelse(grepl("MnPc", term), "Maternal", ifelse(grepl("McPn", term), "Paternal", "Both"))) 
+
+
+Y.1M.Mod <- glm(Glycogen ~ Sugar.Weight + Sex*Crosses, data=subset(dataN,Generation=="F1"))
+Y.2M.Mod <- glm(Glycogen ~ Sugar.Weight + Sex*Crosses, data=subset(dataN,Generation=="F2"))
+Y.3M.Mod <- glm(Glycogen ~ Sugar.Weight + Sex*Crosses, data=subset(dataN,Generation=="F3"))
+Y.M.results.df <- rbind(
+      tidy(Y.1M.Mod) %>% mutate(generation = "F1"),
+      tidy(Y.2M.Mod) %>% mutate(generation = "F2"),
+      tidy(Y.3M.Mod) %>% mutate(generation = "F3")) %>%
+  filter(!grepl("Sexfemale", term))  %>% 
+  filter(grepl("Crosses", term)) %>%
+  mutate(metabolite = "Glycogen") %>% 
+  mutate(sex = "male") %>%
+  mutate(exposure = ifelse(grepl("MnPc", term), "Maternal", ifelse(grepl("McPn", term), "Paternal", "Both"))) 
+
+T.1M.Mod <- glm(Trehalose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN,Generation=="F1"))
+T.2M.Mod <- glm(Trehalose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN,Generation=="F2"))
+T.3M.Mod <- glm(Trehalose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN,Generation=="F3"))
+T.M.results.df <- rbind(
+      tidy(T.1M.Mod) %>% mutate(generation = "F1"),
+      tidy(T.2M.Mod) %>% mutate(generation = "F2"),
+      tidy(T.3M.Mod) %>% mutate(generation = "F3")) %>%
+  filter(!grepl("Sexfemale", term))  %>% 
+  filter(grepl("Crosses", term)) %>%
+  mutate(metabolite = "Trehalose") %>% 
+  mutate(sex = "male") %>%
+  mutate(exposure = ifelse(grepl("MnPc", term), "Maternal", ifelse(grepl("McPn", term), "Paternal", "Both"))) 
+
+G.1M.Mod <- glm(Glucose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN,Generation=="F1"))
+G.2M.Mod <- glm(Glucose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN,Generation=="F2"))
+G.3M.Mod <- glm(Glucose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN,Generation=="F3"))
+G.M.results.df <- rbind(
+      tidy(G.1M.Mod) %>% mutate(generation = "F1"),
+      tidy(G.2M.Mod) %>% mutate(generation = "F2"),
+      tidy(G.3M.Mod) %>% mutate(generation = "F3")) %>%
+  filter(!grepl("Sexfemale", term))  %>% 
+  filter(grepl("Crosses", term)) %>%
+  mutate(metabolite = "Glucose") %>% 
+  mutate(sex = "male") %>%
+  mutate(exposure = ifelse(grepl("MnPc", term), "Maternal", ifelse(grepl("McPn", term), "Paternal", "Both"))) 
+
+CDRslts.df <- bind_rows(Ta.F.results.df, Y.F.results.df, T.F.results.df, G.F.results.df, Fit.F.results.df, Weight.F.results.df, Ta.M.results.df, Y.M.results.df, T.M.results.df, G.M.results.df, Weight.M.results.df) 
+
+CDRslts.df <- plyr::rename(CDRslts.df, c("term"="contrast")) %>% mutate(pAdj = p.adjust(p.value, method = "fdr"))
+
+results <- symnum(CDRslts.df$pAdj, corr = FALSE, na = FALSE, cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1), symbols = c("***", "**", "*", ".", " "))
+
+CDresults <- cbind(CDRslts.df, results)
+
+write.csv(CDresults, file = "Ch3 Contrasts NSD (FDR_corrected).csv")
+```
+
+Contrasts Between Exposure 
+```{r}
+dataN$Sex <- factor(dataN$Sex, levels=c("female", "male"))
+dataN$Crosses <- factor(dataN$Crosses, levels=c("McPc","MnPn", "MnPc", "McPn"))
+Ta.1F.Mod <- glm(TAG ~ Fat.Weight + Sex*Crosses, data=subset(dataN, Generation=="F1"))
+Ta.1F.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+Ta.1F.comps <- glht(Ta.1F.Mod, Ta.1F.contrast.matrix) 
+Ta.1F <- summary(Ta.1F.comps) 
+
+Y.1F.Mod <- glm(Glycogen ~ Sugar.Weight + Sex*Crosses, data=subset(dataN, Generation=="F1"))
+Y.1F.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+Y.1F.comps <- glht(Y.1F.Mod, Y.1F.contrast.matrix) 
+Y.1F <- summary(Y.1F.comps) 
+
+T.1F.Mod <- glm(Trehalose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN, Generation=="F1"))
+T.1F.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+T.1F.comps <- glht(T.1F.Mod, T.1F.contrast.matrix) 
+T.1F <- summary(T.1F.comps) 
+
+G.1F.Mod <- glm(Glucose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN, Generation=="F1"))
+G.1F.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+G.1F.comps <- glht(G.1F.Mod, G.1F.contrast.matrix) 
+G.1F <- summary(G.1F.comps) 
+
+Fit.1F.Mod <- glm(Fitness ~ Crosses, data=subset(dataN, Generation=="F1"))
+Fit.1F.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,1,-1, 0),  
+  'Both vs Paternal NSD' = c(0,1,0, -1),  
+  'Maternal vs Paternal NSD' = c(0,0,1,-1))
+Fit.1F.comps <- glht(Fit.1F.Mod, Fit.1F.contrast.matrix) 
+Fit.1F <- summary(Fit.1F.comps) 
+
+dataN$Sex <- factor(dataN$Sex, levels=c("male", "female"))
+dataN$Crosses <- factor(dataN$Crosses, levels=c("McPc", "MnPn", "MnPc", "McPn"))
+Ta.1M.Mod <- glm(TAG ~ Fat.Weight + Sex*Crosses, data=subset(dataN, Generation=="F1"))
+Ta.1M.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+Ta.1M.comps <- glht(Ta.1M.Mod, Ta.1M.contrast.matrix) 
+Ta.1M <- summary(Ta.1M.comps) 
+
+Y.1M.Mod <- glm(Glycogen ~ Sugar.Weight + Sex*Crosses, data=subset(dataN, Generation=="F1"))
+Y.1M.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+Y.1M.comps <- glht(Y.1M.Mod, Y.1M.contrast.matrix) 
+Y.1M <- summary(Y.1M.comps) 
+
+T.1M.Mod <- glm(Trehalose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN, Generation=="F1"))
+T.1M.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+T.1M.comps <- glht(T.1M.Mod, T.1M.contrast.matrix) 
+T.1M <- summary(T.1M.comps) 
+
+G.1M.Mod <- glm(Glucose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN, Generation=="F1"))
+G.1M.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+G.1M.comps <- glht(G.1M.Mod, G.1M.contrast.matrix) 
+G.1M <- summary(G.1M.comps) 
+
+
+dataN$Sex <- factor(dataN$Sex, levels=c("female", "male"))
+dataN$Crosses <- factor(dataN$Crosses, levels=c("McPc", "MnPn", "MnPc", "McPn"))
+Ta.2F.Mod <- glm(TAG ~ Fat.Weight + Sex*Crosses, data=subset(dataN, Generation=="F2"))
+Ta.2F.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+Ta.2F.comps <- glht(Ta.2F.Mod, Ta.2F.contrast.matrix) 
+Ta.2F <- summary(Ta.2F.comps) 
+
+Y.2F.Mod <- glm(Glycogen ~ Sugar.Weight + Sex*Crosses, data=subset(dataN, Generation=="F2"))
+Y.2F.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+Y.2F.comps <- glht(Y.2F.Mod, Y.2F.contrast.matrix) 
+Y.2F <- summary(Y.2F.comps) 
+
+T.2F.Mod <- glm(Trehalose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN, Generation=="F2"))
+T.2F.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+T.2F.comps <- glht(T.2F.Mod, T.2F.contrast.matrix) 
+T.2F <- summary(T.2F.comps) 
+
+G.2F.Mod <- glm(Glucose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN, Generation=="F2"))
+G.2F.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+G.2F.comps <- glht(G.2F.Mod, G.2F.contrast.matrix) 
+G.2F <- summary(G.2F.comps) 
+
+Fit.2F.Mod <- glm(Fitness ~ Crosses, data=subset(dataN, Generation=="F2"))
+Fit.2F.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,1,-1, 0),  
+  'Both vs Paternal NSD' = c(0,1,0, -1),  
+  'Maternal vs Paternal NSD' = c(0,0,1,-1))
+Fit.2F.comps <- glht(Fit.2F.Mod, Fit.2F.contrast.matrix) 
+Fit.2F <- summary(Fit.2F.comps) 
+
+dataN$Sex <- factor(dataN$Sex, levels=c("male", "female"))
+dataN$Crosses <- factor(dataN$Crosses, levels=c("McPc", "MnPn", "MnPc", "McPn"))
+Ta.2M.Mod <- glm(TAG ~ Fat.Weight + Sex*Crosses, data=subset(dataN, Generation=="F2"))
+Ta.2M.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+Ta.2M.comps <- glht(Ta.2M.Mod, Ta.2M.contrast.matrix) 
+Ta.2M <- summary(Ta.2M.comps) 
+
+Y.2M.Mod <- glm(Glycogen ~ Sugar.Weight + Sex*Crosses, data=subset(dataN, Generation=="F2"))
+Y.2M.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+Y.2M.comps <- glht(Y.2M.Mod, Y.2M.contrast.matrix) 
+Y.2M <- summary(Y.2M.comps) 
+
+T.2M.Mod <- glm(Trehalose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN, Generation=="F2"))
+T.2M.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+T.2M.comps <- glht(T.2M.Mod, T.2M.contrast.matrix) 
+T.2M <- summary(T.2M.comps) 
+
+G.2M.Mod <- glm(Glucose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN, Generation=="F2"))
+G.2M.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+G.2M.comps <- glht(G.2M.Mod, G.2M.contrast.matrix) 
+G.2M <- summary(G.2M.comps) 
+
+
+dataN$Sex <- factor(dataN$Sex, levels=c("female", "male"))
+dataN$Crosses <- factor(dataN$Crosses, levels=c("McPc", "MnPn", "MnPc", "McPn"))
+Ta.3F.Mod <- glm(TAG ~ Fat.Weight + Sex*Crosses, data=subset(dataN, Generation=="F3"))
+Ta.3F.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+Ta.3F.comps <- glht(Ta.3F.Mod, Ta.3F.contrast.matrix) 
+Ta.3F <- summary(Ta.3F.comps) 
+
+Y.3F.Mod <- glm(Glycogen ~ Sugar.Weight + Sex*Crosses, data=subset(dataN, Generation=="F3"))
+Y.3F.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+Y.3F.comps <- glht(Y.3F.Mod, Y.3F.contrast.matrix) 
+Y.3F <- summary(Y.3F.comps) 
+
+T.3F.Mod <- glm(Trehalose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN, Generation=="F3"))
+T.3F.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+T.3F.comps <- glht(T.3F.Mod, T.3F.contrast.matrix) 
+T.3F <- summary(T.3F.comps) 
+
+G.3F.Mod <- glm(Glucose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN, Generation=="F3"))
+G.3F.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+G.3F.comps <- glht(G.3F.Mod, G.3F.contrast.matrix) 
+G.3F <- summary(G.3F.comps) 
+
+Fit.3F.Mod <- glm(Fitness ~ Crosses, data=subset(dataN, Generation=="F3"))
+Fit.3F.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,1,-1, 0),  
+  'Both vs Paternal NSD' = c(0,1,0, -1),  
+  'Maternal vs Paternal NSD' = c(0,0,1,-1))
+Fit.3F.comps <- glht(Fit.3F.Mod, Fit.3F.contrast.matrix) 
+Fit.3F <- summary(Fit.3F.comps) 
+
+dataN$Sex <- factor(dataN$Sex, levels=c("male", "female"))
+dataN$Crosses <- factor(dataN$Crosses, levels=c("McPc", "MnPn", "MnPc", "McPn"))
+Ta.3M.Mod <- glm(TAG ~ Fat.Weight + Sex*Crosses, data=subset(dataN, Generation=="F3"))
+Ta.3M.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+Ta.3M.comps <- glht(Ta.3M.Mod, Ta.3M.contrast.matrix) 
+Ta.3M <- summary(Ta.3M.comps) 
+
+Y.3M.Mod <- glm(Glycogen ~ Sugar.Weight + Sex*Crosses, data=subset(dataN, Generation=="F3"))
+Y.3M.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+Y.3M.comps <- glht(Y.3M.Mod, Y.3M.contrast.matrix) 
+Y.3M <- summary(Y.3M.comps) 
+
+T.3M.Mod <- glm(Trehalose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN, Generation=="F3"))
+T.3M.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+T.3M.comps <- glht(T.3M.Mod, T.3M.contrast.matrix) 
+T.3M <- summary(T.3M.comps) 
+
+G.3M.Mod <- glm(Glucose ~ Sugar.Weight + Sex*Crosses, data=subset(dataN, Generation=="F3"))
+G.3M.contrast.matrix <- rbind(
+  'Both vs Maternal NSD' = c(0,0,0,1,-1, 0,0,0,0),  
+  'Both vs Paternal NSD' = c(0,0,0,1,0, -1,0,0,0),  
+  'Maternal vs Paternal NSD' = c(0,0,0,0,1,-1,0,0,0))
+G.3M.comps <- glht(G.3M.Mod, G.3M.contrast.matrix) 
+G.3M <- summary(G.3M.comps) 
+
+BtwnRslts.df <- rbind(tidy(Ta.1F) %>% 
+                        mutate(metabolite = "TAG") %>% 
+                        mutate(sex= "female") %>% 
+                        mutate(generation= "F1"),
+                     tidy(Y.1F) %>% 
+                        mutate(metabolite = "Glycogen") %>% 
+                        mutate(sex= "female") %>% 
+                        mutate(generation= "F1"),
+                     tidy(T.1F) %>% 
+                        mutate(metabolite = "Trehalose") %>% 
+                        mutate(sex= "female") %>% 
+                        mutate(generation= "F1"),
+                     tidy(G.1F) %>% 
+                        mutate(metabolite = "Glucose") %>% 
+                        mutate(sex= "female") %>% 
+                        mutate(generation= "F1"),
+                     tidy(Fit.1F) %>% 
+                        mutate(metabolite = "Fitness") %>% 
+                        mutate(sex= "female") %>% 
+                        mutate(generation= "F1"),
+                     tidy(Ta.1M) %>% 
+                        mutate(metabolite = "TAG") %>% 
+                        mutate(sex= "male") %>% 
+                        mutate(generation= "F1"),
+                     tidy(Y.1M) %>% 
+                        mutate(metabolite = "Glycogen") %>% 
+                        mutate(sex= "male") %>% 
+                        mutate(generation= "F1"),
+                     tidy(T.1M) %>% 
+                        mutate(metabolite = "Trehalose") %>% 
+                        mutate(sex= "male") %>% 
+                        mutate(generation= "F1"),
+                     tidy(G.1M) %>% 
+                        mutate(metabolite = "Glucose") %>% 
+                        mutate(sex= "male") %>% 
+                        mutate(generation= "F1"),
+                     tidy(Ta.2F) %>% 
+                        mutate(metabolite = "TAG") %>% 
+                        mutate(sex= "female") %>% 
+                        mutate(generation= "F2"),
+                     tidy(Y.2F) %>% 
+                        mutate(metabolite = "Glycogen") %>% 
+                        mutate(sex= "female") %>% 
+                        mutate(generation= "F2"),
+                     tidy(T.2F) %>% 
+                        mutate(metabolite = "Trehalose") %>% 
+                        mutate(sex= "female") %>% 
+                        mutate(generation= "F2"),
+                     tidy(G.2F) %>% 
+                        mutate(metabolite = "Glucose") %>% 
+                        mutate(sex= "female") %>% 
+                        mutate(generation= "F2"),
+                     tidy(Fit.2F) %>% 
+                        mutate(metabolite = "Fitness") %>% 
+                        mutate(sex= "female") %>% 
+                        mutate(generation= "F2"),
+                     tidy(Ta.2M) %>% 
+                        mutate(metabolite = "TAG") %>% 
+                        mutate(sex= "male") %>% 
+                        mutate(generation= "F2"),
+                     tidy(Y.2M) %>% 
+                        mutate(metabolite = "Glycogen") %>% 
+                        mutate(sex= "male") %>% 
+                        mutate(generation= "F2"),
+                     tidy(T.2M) %>% 
+                        mutate(metabolite = "Trehalose") %>% 
+                        mutate(sex= "male") %>% 
+                        mutate(generation= "F2"),
+                     tidy(G.2M) %>% 
+                        mutate(metabolite = "Glucose") %>% 
+                        mutate(sex= "male") %>% 
+                        mutate(generation= "F2"),
+                     tidy(Ta.3F) %>% 
+                        mutate(metabolite = "TAG") %>% 
+                        mutate(sex= "female") %>% 
+                        mutate(generation= "F3"),
+                     tidy(Y.3F) %>% 
+                        mutate(metabolite = "Glycogen") %>% 
+                        mutate(sex= "female") %>% 
+                        mutate(generation= "F3"),
+                     tidy(T.3F) %>% 
+                        mutate(metabolite = "Trehalose") %>% 
+                        mutate(sex= "female") %>% 
+                        mutate(generation= "F3"),
+                     tidy(G.3F) %>% 
+                        mutate(metabolite = "Glucose") %>% 
+                        mutate(sex= "female") %>% 
+                        mutate(generation= "F3"),
+                     tidy(Fit.3F) %>% 
+                        mutate(metabolite = "Fitness") %>% 
+                        mutate(sex= "female") %>% 
+                        mutate(generation= "F3"),
+                     tidy(Ta.3M) %>% 
+                        mutate(metabolite = "TAG") %>% 
+                        mutate(sex= "male") %>% 
+                        mutate(generation= "F3"), 
+                     tidy(Y.3M) %>% 
+                        mutate(metabolite = "Glycogen") %>% 
+                        mutate(sex= "male") %>% 
+                        mutate(generation= "F3"),
+                     tidy(T.3M) %>% 
+                        mutate(metabolite = "Trehalose") %>% 
+                        mutate(sex= "male") %>% 
+                        mutate(generation= "F3"),
+                     tidy(G.3M) %>% 
+                        mutate(metabolite = "Glucose") %>% 
+                        mutate(sex= "male") %>% 
+                        mutate(generation= "F3"))
+
+BtwnRslts.df <- plyr::rename(BtwnRslts.df, c("lhs"="contrast")) 
+BtwnRslts.df$exposure <- rep("NA", length(BtwnRslts.df$generation))
+BtwnRslts.df <- BtwnRslts.df[,c("contrast", "estimate", "std.error", "statistic", "p.value", "generation", "metabolite", "sex", "exposure")]
+BtwnRslts.df <- BtwnRslts.df %>% mutate(pAdj = p.adjust(p.value, method = "fdr"))
+results <- symnum(BtwnRslts.df$pAdj, corr = FALSE, na = FALSE, cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1), symbols = c("***", "**", "*", ".", " "))
+BetweenResults <- cbind(BtwnRslts.df, results)
+write.csv(BetweenResults, file = "NSD Exposure Crosses Contrasts.csv")
+
+```
+
+Combine Between Treatment and Between Exposure Contrasts into a Single dataframe and do experiment-wide false discovery rate corrections. 
+```{r}
+Results <- rbind(CDresults, BetweenResults)
+Results <- Results %>% mutate(pAdjALL = p.adjust(p.value, method = "fdr"))
+SignifAll <- symnum(Results$pAdjALL, corr = FALSE, na = FALSE, cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1), symbols = c("***", "**", "*", ".", " "))
+Results <- cbind(Results, SignifAll)
+write.csv(Results, file = "NSD All Contrasts.csv")
+```
+
+Plots
+Prep data file 
+```{r}
+data <- read.csv(text=getURL("https://raw.githubusercontent.com/cemborski/Parent-of-Origin-Effects-on-Transgenerational-Inheritance-in-Drosophila-melanogaster-NSD-/master/NSD%20Data.csv"), header=T)
+
+head(data)
+
+#Melt data for easier use below
+Sugar.m <- melt(data, id.vars=c("Generation", "Sex", "Crosses", "Treatment", "Sugar.Weight"), measure.vars=c("Glucose", "Trehalose", "Glycogen"))
+Sugar.m <- plyr::rename(Sugar.m, c("Sugar.Weight"="Weight"))
+Fat.m <- melt(data, id.vars=c("Generation", "Sex", "Crosses", "Treatment", "Fat.Weight"), measure.vars="TAG")
+Fat.m <- plyr::rename(Fat.m, c("Fat.Weight"="Weight"))
+data.m <- rbind(Sugar.m, Fat.m)
+data.m <- data.m[complete.cases(data.m),]
+
+#Normalize metabolite value to fly weight
+data.Wt <- data.frame(Crosses=character(), Generation=character(), Sex=character(), Treatment=character(), variable=character(), value=numeric())
+for(i in unique(data.m$Crosses))
+  for(j in unique(data.m$Generation))
+    for(k in unique(data.m$Sex))
+      for(l in unique(data.m$Treatment))
+        for(m in unique(data.m$variable)){
+        temp <- subset(data.m, Crosses == i & Generation == j & Sex == k & Treatment == l & variable == m)
+        temp$MetabWt <- ((subset(data.m, Crosses == i & Generation == j & Sex == k & Treatment == l & variable == m)$value)/(subset(data.m, Crosses == i & Generation == j & Sex == k & Treatment == l & variable == m)$Weight))
+        data.Wt <- rbind(data.Wt, temp)}
+
+
+NplotData <- data.Wt
+NplotData$Crosses <- factor(NplotData$Crosses, levels=c("MnPn", "MnPc", "McPn"))
+NplotData$Crosses <- revalue(NplotData$Crosses, c("MnPn"="Parentaline", "MnPc"="Matriline", "McPn"="Patriline"))
+ 
+CplotData <- data.Wt %>% filter(grepl("CD", Treatment)) 
+#CplotData$Crosses <- revalue(CplotData$Crosses, "McPc" = "Controls")
+
+g_legend<-function(a.gplot){
+  tmp <- ggplot_gtable(ggplot_build(a.gplot))
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+  legend <- tmp$grobs[[leg]]
+  return(legend)}
+```
+
+Plots:
+Female TAG
+```{r}
+F.1.N.MPB.Ta.plot <- ggplot(subset(NplotData, Sex=="female" & Crosses==c("Parentaline", "Matriline", "Patriline") & variable=="TAG" & Generation=="F1"), aes(x=variable, y=MetabWt, fill=Crosses)) + 
+  geom_boxplot() + geom_rug(data=subset(CplotData, Sex=="female" & variable=="TAG" & Generation=="F1"), aes(x= variable, y=MetabWt), inherit.aes = F, sides="l") +
+  scale_fill_manual("Parent of Origin", values=c("#9966cc", "#FFaaaa", "#3399FF")) + 
+  ggtitle("") + ylab(" ") + xlab("F1") + theme_bw() + 
+  geom_hline(aes(yintercept=9.032813), color="black", linetype="dashed") + 
+  scale_y_continuous(limits=c(0, 30)) + 
+  theme(legend.key.size =  unit(1, "in"), legend.text = element_text(size=18), legend.title = element_text(size=18, face="bold"), axis.text=element_text(size=25), axis.text.x = element_blank(), axis.ticks.x = element_blank(), axis.title.x = element_text(size=30), plot.title = element_text(size = rel(3), hjust = 0.5)) + 
+  geom_signif(annotations = c("**", "", "***"), y_position = c(23, 24, 27), xmin=c(0.75, 1, 0.75), xmax=c(1, 1.25, 1.25), color="gray43", size=1.1, tip_length = 0.03, textsize=14, vjust = .25) + 
+  annotate("text", 0.75, y = 16, label = "", cex=14) + 
+  annotate("text", 1, y = 17, label = "", cex=14) + 
+  annotate("text", 1.25, y = 19.5, label = "", cex=14) + 
+  annotate("text", 1.425, y = 0.1, label = "d", cex=16) 
+F.1.N.MPB.Ta.plot  
+
+F.2.N.MPB.Ta.plot <- ggplot(subset(NplotData, Sex=="female" & Treatment=="NSD" & Crosses==c("Parentaline", "Matriline", "Patriline") & variable=="TAG" & Generation=="F2"), aes(x=variable, y=MetabWt, fill=Crosses)) + 
+  geom_boxplot() + geom_rug(data=subset(CplotData, Sex=="female" & variable=="TAG" & Generation=="F2"), aes(x= variable, y=MetabWt), inherit.aes = F, sides="l") + 
+  scale_fill_manual(values=c("#9966cc", "#FFaaaa", "#3399FF")) + 
+  ggtitle("") + ylab(" ") + xlab("F2") + theme_bw() + 
+  geom_hline(aes(yintercept=6.899558), color="black", linetype="dashed")  + 
+  scale_y_continuous(limits=c(0, 20)) + 
+  theme(legend.key.size =  unit(1, "in"), legend.text = element_text(size=18), legend.title = element_text(size=18, face="bold"), axis.text=element_text(size=25), axis.text.x = element_blank(), axis.ticks.x = element_blank(), axis.title.x = element_text(size=30), plot.title = element_text(size = rel(3), hjust = 0.5)) + 
+  geom_signif(annotations = c("", "", ""), y_position = c(15.25, 16, 18), xmin=c(0.75, 1, 0.75), xmax=c(1, 1.25, 1.25), color="gray43", size=1.1, tip_length = 0.025, textsize=14, vjust = .25) + 
+  annotate("text", 0.75, y = 17.5, label = "", cex=14) + 
+  annotate("text", 1, y = 1.2, label = "", cex=14) + 
+  annotate("text", 1.25, y = 11, label = "", cex=14) + 
+  annotate("text", 1.425, y = 0.1, label = "e", cex=16) 
+F.2.N.MPB.Ta.plot
+
+F.3.N.MPB.Ta.plot <- ggplot(subset(NplotData, Sex=="female" & Treatment=="NSD" & Crosses==c("Parentaline", "Matriline", "Patriline") & variable=="TAG" & Generation=="F3"), aes(x=variable, y=MetabWt, fill=Crosses)) + 
+  geom_boxplot() + geom_rug(data=subset(CplotData, Sex=="female" & variable=="TAG" & Generation=="F3"), aes(x= variable, y=MetabWt), inherit.aes = F, sides="l") + 
+  scale_fill_manual(values=c("#9966cc", "#FFaaaa", "#3399FF")) + 
+  ggtitle("") + ylab(" ") + xlab("F3") + theme_bw() + 
+  geom_hline(aes(yintercept=9.945451), color="black", linetype="dashed")  + 
+  scale_y_continuous(limits=c(0, 30)) + 
+  theme(legend.key.size =  unit(1, "in"), legend.text = element_text(size=18), legend.title = element_text(size=18, face="bold"), axis.text=element_text(size=25), axis.text.x = element_blank(), axis.ticks.x = element_blank(), axis.title.x = element_text(size=30), plot.title = element_text(size = rel(3), hjust = 0.5)) + 
+  geom_signif(annotations = c("", "", ""), y_position = c(23, 24, 27), xmin=c(0.75, 1, 0.75), xmax=c(1, 1.25, 1.25), color="gray43", size=1.1,tip_length = 0.03, textsize=14, vjust = .25) + 
+  annotate("text", 0.75, y = 12.1, label = "", cex=14) + 
+  annotate("text", 1, y = 1.2, label = "", cex=14) + 
+  annotate("text", 1.25, y = 11, label = "", cex=14) + 
+  annotate("text", 1.425, y = 0.1, label = "f", cex=16) 
+F.3.N.MPB.Ta.plot
+
+mylegend<-g_legend(F.1.N.MPB.Ta.plot)
+
+Ta.F.N.plot <- grid.arrange(arrangeGrob(F.1.N.MPB.Ta.plot + theme(legend.position="none"), F.2.N.MPB.Ta.plot + theme(legend.position="none"), F.3.N.MPB.Ta.plot + theme(legend.position="none"), ncol=3, top=textGrob("NSD Females: Triglycerides", gp = gpar(fontface=2, fontsize=40)), bottom=textGrob("", gp = gpar(fontface=1, fontsize=25)), left=textGrob("Triglycerides/Weight (µg)", rot=90, gp = gpar(fontface=1, fontsize=35))), mylegend, ncol=2, widths=c(10,2))
+
+ggsave("NSD F1-3 TAG (rug).png", Ta.F.N.plot, width = 30, height = 10, units = "in")
+```
+Male TAG
+```{r}
+#MALE TAG
+M.1.N.MPB.Ta.plot <- ggplot(subset(NplotData, Sex=="male" & Treatment=="NSD" & Crosses==c("Parentaline", "Matriline", "Patriline") & variable=="TAG" & Generation=="F1"), aes(x=variable, y=MetabWt, fill=Crosses)) + 
+  geom_boxplot() + geom_rug(data=subset(CplotData, Sex=="male" & variable=="TAG" & Generation=="F1"), aes(x= variable, y=MetabWt), inherit.aes = F, sides="l") + 
+  scale_fill_manual("Parent of Origin", values=c("#9966cc", "#FFaaaa", "#3399FF")) + 
+  ggtitle("") + ylab(" ") + xlab("F1") + theme_bw() + 
+  geom_hline(aes(yintercept=11.014501), color="black", linetype="dashed")  + 
+  scale_y_continuous(limits=c(0, 50)) + 
+  theme(legend.key.size =  unit(1, "in"), legend.text = element_text(size=18), legend.title = element_text(size=18, face="bold"), axis.text=element_text(size=25), axis.text.x = element_blank(), axis.ticks.x = element_blank(), axis.title.x = element_text(size=30), plot.title = element_text(size = rel(3), hjust = 0.5)) + 
+  geom_signif(annotations = c("***", "***", "***"), y_position = c(43, 44, 47), xmin=c(0.75, 1, 0.75), xmax=c(1, 1.25, 1.25), color="gray43", size=1.1, tip_length = 0.03, textsize=14, vjust = .25) + 
+  annotate("text", 0.75, y = 7.5, label = "", cex=14) + 
+  annotate("text", 1, y = 25, label = "**", cex=14) + 
+  annotate("text", 1.25, y = 40.5, label = "***", cex=14) + 
+  annotate("text", 1.425, y = 0.1, label = "a", cex=16) 
+M.1.N.MPB.Ta.plot
+
+M.2.N.MPB.Ta.plot <- ggplot(subset(NplotData, Sex=="male" & Treatment=="NSD" & Crosses==c("Parentaline", "Matriline", "Patriline") & variable=="TAG" & Generation=="F2"), aes(x=variable, y=MetabWt, fill=Crosses)) + 
+  geom_boxplot() + geom_rug(data=subset(CplotData, Sex=="male" & variable=="TAG" & Generation=="F2"), aes(x= variable, y=MetabWt), inherit.aes = F, sides="l") + 
+  scale_fill_manual(values=c("#9966cc", "#FFaaaa", "#3399FF")) + 
+  ggtitle("") + ylab(" ") + xlab("F2") + theme_bw() + 
+  geom_hline(aes(yintercept=14.22391), color="black", linetype="dashed")  + 
+  scale_y_continuous(limits=c(0, 50)) + 
+  theme(legend.key.size =  unit(1, "in"), legend.text = element_text(size=18), legend.title = element_text(size=18, face="bold"), axis.text=element_text(size=25), axis.text.x = element_blank(), axis.ticks.x = element_blank(), axis.title.x = element_text(size=30), plot.title = element_text(size = rel(3), hjust = 0.5)) + 
+  geom_signif(annotations = c("", "", ""), y_position = c(43, 44, 47), xmin=c(0.75, 1, 0.75), xmax=c(1, 1.25, 1.25), color="gray43", size=1.1, tip_length = 0.015, textsize=14, vjust = .25) + 
+  annotate("text", 0.75, y = 5, label = "", cex=14) + 
+  annotate("text", 1, y = 7.2, label = "", cex=14) + 
+  annotate("text", 1.25, y = 1.1, label = "", cex=14) + 
+  annotate("text", 1.425, y = 0.1, label = "b", cex=16) 
+M.2.N.MPB.Ta.plot
+
+M.3.N.MPB.Ta.plot <- ggplot(subset(NplotData, Sex=="male" & Treatment=="NSD" & Crosses==c("Parentaline", "Matriline", "Patriline") & variable=="TAG" & Generation=="F3"), aes(x=variable, y=MetabWt, fill=Crosses)) + 
+  geom_boxplot() + geom_rug(data=subset(CplotData, Sex=="male" & variable=="TAG" & Generation=="F3"), aes(x= variable, y=MetabWt), inherit.aes = F, sides="l") + 
+  scale_fill_manual(values=c("#9966cc", "#FFaaaa", "#3399FF")) + 
+  ggtitle("") + ylab(" ") + xlab("F3") + theme_bw() + 
+  geom_hline(aes(yintercept=9.012109), color="black", linetype="dashed")  + 
+  scale_y_continuous(limits=c(0, 50)) + 
+  theme(legend.key.size =  unit(1, "in"), legend.text = element_text(size=18), legend.title = element_text(size=18, face="bold"), axis.text=element_text(size=25), axis.text.x = element_blank(), axis.ticks.x = element_blank(), axis.title.x = element_text(size=30), plot.title = element_text(size = rel(3), hjust = 0.5)) + 
+  geom_signif(annotations = c("", "", ""), y_position = c(43, 44, 47), xmin=c(0.75, 1, 0.75), xmax=c(1, 1.25, 1.25), color="gray43", size=1.1, tip_length = 0.015, textsize=14, vjust = .25) + 
+  annotate("text", 0.75, y = 5, label = "", cex=14) + 
+  annotate("text", 1, y = 7.2, label = "", cex=14) + 
+  annotate("text", 1.25, y = 1.1, label = "", cex=14) + 
+  annotate("text", 1.425, y = 0.1, label = "c", cex=16) 
+M.3.N.MPB.Ta.plot
+
+
+mylegend<-g_legend(M.1.N.MPB.Ta.plot)
+
+Ta.M.N.plot <- grid.arrange(arrangeGrob(M.1.N.MPB.Ta.plot + theme(legend.position="none"), M.2.N.MPB.Ta.plot + theme(legend.position="none"), M.3.N.MPB.Ta.plot + theme(legend.position="none"), ncol=3, top=textGrob("NSD Males: Triglycerides", gp = gpar(fontface=2, fontsize=40)), bottom=textGrob("", gp = gpar(fontface=1, fontsize=25)), left=textGrob("Triglycerides/Fly Weight", rot=90, gp = gpar(fontface=1, fontsize=35))), mylegend, ncol=2, widths=c(10,2))
+
+ggsave("NSD M1-3 TAG (rug).png", Ta.M.N.plot, width = 30, height = 10, units = "in")
+```
+Female Glycogen
+```{r}
+#Female Glycogen
+F.1.N.MPB.Y.plot <- ggplot(subset(NplotData, Sex=="female" & Treatment=="NSD" & Crosses==c("Parentaline", "Matriline", "Patriline") & variable=="Glycogen" & Generation=="F1"), aes(x=variable, y=MetabWt, fill=Crosses)) + 
+  geom_boxplot() + geom_rug(data=subset(CplotData, Sex=="female" & variable=="Glycogen" & Generation=="F1"), aes(x= variable, y=MetabWt), inherit.aes = F, sides="l") + 
+  scale_fill_manual("Parent of Origin", values=c("#9966cc", "#FFaaaa", "#3399FF")) + 
+  ggtitle("") + ylab(" ") + xlab("F1") + theme_bw() + geom_hline(aes(yintercept=4.720898), color="black", linetype="dashed")  + 
+  scale_y_continuous(limits=c(0, 20)) + 
+  theme(legend.key.size =  unit(1, "in"), legend.text = element_text(size=18), legend.title = element_text(size=18, face="bold"), axis.text=element_text(size=25), axis.text.x = element_blank(), axis.ticks.x = element_blank(), axis.title.x = element_text(size=30), plot.title = element_text(size = rel(3), hjust = 0.5)) + 
+  geom_signif(annotations = c("*", "", ""), y_position = c(13, 14, 17), xmin=c(0.75, 1, 0.75), xmax=c(1, 1.25, 1.25), color="gray43", size=1.1, tip_length = 0.03, textsize=14, vjust = .25) + 
+  annotate("text", 0.75, y = 7.8, label = "", cex=14) + 
+  annotate("text", 1, y = 6, label = "**", cex=14) + 
+  annotate("text", 1.25, y = 6, label = "*", cex=14) + 
+  annotate("text", 1.425, y = 0.1, label = "a", cex=16) 
+F.1.N.MPB.Y.plot
+
+F.2.N.MPB.Y.plot <- ggplot(subset(NplotData, Sex=="female" & Treatment=="NSD" & Crosses==c("Parentaline", "Matriline", "Patriline") & variable=="Glycogen" & Generation=="F2"), aes(x=variable, y=MetabWt, fill=Crosses)) + 
+  geom_boxplot() + geom_rug(data=subset(CplotData, Sex=="female" & variable=="Glycogen" & Generation=="F2"), aes(x= variable, y=MetabWt), inherit.aes = F, sides="l")  + 
+  scale_fill_manual("Parent of Origin", values=c("#9966cc", "#FFaaaa", "#3399FF")) + 
+  ggtitle("") + ylab(" ") + xlab("F2") + theme_bw() + 
+  geom_hline(aes(yintercept=4.897073), color="black", linetype="dashed")  +
+  scale_y_continuous(limits=c(0, 20)) + 
+  theme(legend.key.size =  unit(1, "in"), legend.text = element_text(size=18), legend.title = element_text(size=18, face="bold"), axis.text=element_text(size=25), axis.text.x = element_blank(), axis.ticks.x = element_blank(), axis.title.x = element_text(size=30), plot.title = element_text(size = rel(3), hjust = 0.5)) + 
+  geom_signif(annotations = c("", "", ""), y_position = c(13, 14, 17), xmin=c(0.75, 1, 0.75), xmax=c(1, 1.25, 1.25), color="gray43", size=1.1, tip_length = 0.03, textsize=14, vjust = .25) + 
+  annotate("text", 0.75, y = 7.8, label = "", cex=14) + 
+  annotate("text", 1, y = 11.5, label = "**", cex=14) + 
+  annotate("text", 1.25, y = 12.0, label = "", cex=14) + 
+  annotate("text", 1.425, y = 0.1, label = "b", cex=16) 
+F.2.N.MPB.Y.plot
+
+F.3.N.MPB.Y.plot <- ggplot(subset(NplotData, Sex=="female" & Treatment=="NSD" & Crosses==c("Parentaline", "Matriline", "Patriline") & variable=="Glycogen" & Generation=="F3"), aes(x=variable, y=MetabWt, fill=Crosses)) + 
+  geom_boxplot() + geom_rug(data=subset(CplotData, Sex=="female" & variable=="Glycogen" & Generation=="F3"), aes(x= variable, y=MetabWt), inherit.aes = F, sides="l") + 
+  scale_fill_manual(values=c("#9966cc", "#FFaaaa", "#3399FF")) + 
+  ggtitle("") + ylab(" ") + xlab("F3") + theme_bw() + 
+  geom_hline(aes(yintercept=7.389653), color="black", linetype="dashed")  + 
+  scale_y_continuous(limits=c(0, 20)) + 
+  theme(legend.key.size =  unit(1, "in"), legend.text = element_text(size=18), legend.title = element_text(size=18, face="bold"), axis.text=element_text(size=25), axis.text.x = element_blank(), axis.ticks.x = element_blank(), axis.title.x = element_text(size=30), plot.title = element_text(size = rel(3), hjust = 0.5)) + 
+  geom_signif(annotations = c("", "", ""), y_position = c(13, 14, 17), xmin=c(0.75, 1, 0.75), xmax=c(1, 1.25, 1.25), color="gray43", size=1.1, tip_length = 0.03, textsize=14, vjust = .25) + 
+  annotate("text", 0.75, y = 10, label = "*", cex=14) + 
+  annotate("text", 1, y = 1.2, label = "", cex=14) + 
+  annotate("text", 1.25, y = 8.5, label = "", cex=14) + 
+  annotate("text", 1.425, y = 0.1, label = "c", cex=16) 
+F.3.N.MPB.Y.plot
+
+mylegend<-g_legend(F.1.N.MPB.Y.plot)
+
+Y.F.N.plot <- grid.arrange(arrangeGrob(F.1.N.MPB.Y.plot + theme(legend.position="none"), F.2.N.MPB.Y.plot + theme(legend.position="none"), F.3.N.MPB.Y.plot + theme(legend.position="none"), ncol=3, top=textGrob("NSD Females: Glycogen", gp = gpar(fontface=2, fontsize=40)), bottom=textGrob("", gp = gpar(fontface=1, fontsize=25)), left=textGrob("Glycogen (µg/mL)/Fly Weight", rot=90, gp = gpar(fontface=1, fontsize=35))), mylegend, ncol=2, widths=c(10,2))
+
+ggsave("NSD F1_3 Glyc (rug).png", Y.F.N.plot, width = 30, height = 10, units = "in")
+
+# mylegend<-g_legend(F.2.N.MPB.Ta.plot)
+# 
+# TaY.F.N.plot <- grid.arrange(arrangeGrob(F.1.N.MPB.Y.plot + theme(legend.position="none"), F.2.N.MPB.Y.plot + theme(legend.position="none"), F.3.N.MPB.Y.plot + theme(legend.position="none"), F.1.N.MPB.Ta.plot + theme(legend.position="none"), F.2.N.MPB.Ta.plot + theme(legend.position="none"), F.3.N.MPB.Ta.plot + theme(legend.position="none"), ncol=3, top=textGrob("NSD Female Body Composition", gp = gpar(fontface=2, fontsize=40)), bottom=textGrob("", gp = gpar(fontface=1, fontsize=25)), left=textGrob("Triglycerides/Fly Weight                                  Glycogen/Fly Weight", rot=90, gp = gpar(fontface=1, fontsize=35))), mylegend, ncol=2, widths=c(10,2))
+# 
+# ggsave("NSD F1_3 Glyc and TAG (rug).png", TaY.F.N.plot, width = 30, height = 20, units = "in")
+```
+
+Male Glycogen
+```{r}
+#Male Glycogen
+M.1.N.MPB.Y.plot <- ggplot(subset(NplotData, Sex=="male" & Treatment=="NSD" & Crosses==c("Parentaline", "Matriline", "Patriline") & variable=="Glycogen" & Generation=="F1"), aes(x=variable, y=MetabWt, fill=Crosses)) + 
+  geom_boxplot() + geom_rug(data=subset(CplotData, Sex=="male" & variable=="Glycogen" & Generation=="F1"), aes(x= variable, y=MetabWt), inherit.aes = F, sides="l") + 
+  scale_fill_manual("Parent of Origin", values=c("#9966cc", "#FFaaaa", "#3399FF")) + 
+  ggtitle("") + ylab(" ") + xlab("F1") + theme_bw() + 
+  geom_hline(aes(yintercept=4.468900), color="black", linetype="dashed")  +
+  scale_y_continuous(limits=c(0, 20)) + 
+  theme(legend.key.size =  unit(1, "in"), legend.text = element_text(size=18), legend.title = element_text(size=18, face="bold"), axis.text=element_text(size=25), axis.text.x = element_blank(), axis.ticks.x = element_blank(), axis.title.x = element_text(size=30), plot.title = element_text(size = rel(3), hjust = 0.5)) + 
+  geom_signif(annotations = c("", "", "*"), y_position = c(13, 14, 17), xmin=c(0.75, 1, 0.75), xmax=c(1, 1.25, 1.25), color="gray43", size=1.1, tip_length = 0.03, textsize=14, vjust = .25) + 
+  annotate("text", 0.75, y = 7.8, label = "", cex=14) + 
+  annotate("text", 1, y = 17, label = "", cex=14) + 
+  annotate("text", 1.25, y = 8.3, label = "", cex=14) + 
+  annotate("text", 1.425, y = 0.1, label = "a", cex=16) 
+M.1.N.MPB.Y.plot
+
+M.2.N.MPB.Y.plot <- ggplot(subset(NplotData, Sex=="male" & Treatment=="NSD" & Crosses==c("Parentaline", "Matriline", "Patriline") & variable=="Glycogen" & Generation=="F2"), aes(x=variable, y=MetabWt, fill=Crosses)) + 
+  geom_boxplot() + geom_rug(data=subset(CplotData, Sex=="male" & variable=="Glycogen" & Generation=="F2"), aes(x= variable, y=MetabWt), inherit.aes = F, sides="l")  + 
+  scale_fill_manual("Parent of Origin", values=c("#9966cc", "#FFaaaa", "#3399FF")) + 
+  ggtitle("") + ylab(" ") + xlab("F2") + theme_bw() + 
+  geom_hline(aes(yintercept=6.074216), color="black", linetype="dashed")  +
+  scale_y_continuous(limits=c(0, 20)) + 
+  theme(legend.key.size =  unit(1, "in"), legend.text = element_text(size=18), legend.title = element_text(size=18, face="bold"), axis.text=element_text(size=25), axis.text.x = element_blank(), axis.ticks.x = element_blank(), axis.title.x = element_text(size=30), plot.title = element_text(size = rel(3), hjust = 0.5)) + 
+  geom_signif(annotations = c("", "**", "**"), y_position = c(13, 14, 17), xmin=c(0.75, 1, 0.75), xmax=c(1, 1.25, 1.25), color="gray43", size=1.1, tip_length = 0.03, textsize=14, vjust = .25) + 
+  annotate("text", 0.75, y = 7.8, label = "", cex=14) + 
+  annotate("text", 1, y = 17, label = "", cex=14) + 
+  annotate("text", 1.25, y = 12.0, label = "*", cex=14) + 
+  annotate("text", 1.425, y = 0.1, label = "b", cex=16) 
+M.2.N.MPB.Y.plot
+
+M.3.N.MPB.Y.plot <- ggplot(subset(NplotData, Sex=="male" & Treatment=="NSD" & Crosses==c("Parentaline", "Matriline", "Patriline") & variable=="Glycogen" & Generation=="F3"), aes(x=variable, y=MetabWt, fill=Crosses)) + 
+  geom_boxplot() + geom_rug(data=subset(CplotData, Sex=="male" & variable=="Glycogen" & Generation=="F3"), aes(x= variable, y=MetabWt), inherit.aes = F, sides="l") + 
+  scale_fill_manual(values=c("#9966cc", "#FFaaaa", "#3399FF")) + 
+  ggtitle("") + ylab(" ") + xlab("F3") + theme_bw() + 
+  geom_hline(aes(yintercept=5.938353), color="black", linetype="dashed")  +
+  scale_y_continuous(limits=c(0, 20)) + 
+  theme(legend.key.size =  unit(1, "in"), legend.text = element_text(size=18), legend.title = element_text(size=18, face="bold"), axis.text=element_text(size=25), axis.text.x = element_blank(), axis.ticks.x = element_blank(), axis.title.x = element_text(size=30), plot.title = element_text(size = rel(3), hjust = 0.5)) + 
+  geom_signif(annotations = c("", "", ""), y_position = c(13, 14, 17), xmin=c(0.75, 1, 0.75), xmax=c(1, 1.25, 1.25), color="gray43", size=1.1, tip_length = 0.03, textsize=14, vjust = .25) + 
+  annotate("text", 0.75, y = 7.5, label = "", cex=14) + 
+  annotate("text", 1, y = 1.2, label = "", cex=14) + 
+  annotate("text", 1.25, y = 8.5, label = "", cex=14) + 
+  annotate("text", 1.425, y = 0.1, label = "c", cex=16) 
+M.3.N.MPB.Y.plot
+
+mylegend<-g_legend(F.1.N.MPB.Y.plot)
+
+Y.M.N.plot <- grid.arrange(arrangeGrob(M.1.N.MPB.Y.plot + theme(legend.position="none"), M.2.N.MPB.Y.plot + theme(legend.position="none"), M.3.N.MPB.Y.plot + theme(legend.position="none"), ncol=3, top=textGrob("NSD Males: Glycogen", gp = gpar(fontface=2, fontsize=40)), bottom=textGrob("", gp = gpar(fontface=1, fontsize=25)), left=textGrob("Glycogen (µg/mL)/Weight", rot=90, gp = gpar(fontface=1, fontsize=35))), mylegend, ncol=2, widths=c(10,2))
+
+ggsave("NSD M1_3 Glyc (rug).png", Y.M.N.plot, width = 30, height = 10, units = "in")
+
+```
+Female Fitness
+```{r}
+Fitness.m <- melt(data, id.vars=c("Generation", "Sex", "Crosses", "Treatment"), measure.vars="Fitness")
+Fitness.m <- Fitness.m[complete.cases(Fitness.m),]
+
+NFitplotData <- Fitness.m
+NFitplotData$Crosses <- factor(NFitplotData$Crosses, levels=c("MnPn", "MnPc", "McPn"))
+NFitplotData$Crosses <- revalue(NFitplotData$Crosses, c("MnPn"="Parentaline", "MnPc"="Matriline", "McPn"="Patriline"))
+ 
+CFitplotData <- Fitness.m %>% filter(grepl("CD", Treatment)) 
+CFitplotData$Crosses <- recode(CFitplotData$Crosses, McPc = "Controls")
+
+
+
+F.1.N.MPB.Fit.plot <- ggplot(subset(NFitplotData, Sex=="female" & Crosses==c("Parentaline", "Matriline", "Patriline") & variable=="Fitness" & Generation=="F1"), aes(x=variable, y=value, fill=Crosses)) +
+  geom_boxplot() + geom_rug(data=subset(CFitplotData, Sex=="female" & variable=="Fitness" & Generation=="F1"), aes(x= variable, y=value), inherit.aes = F, sides="l") + 
+  scale_fill_manual("Parent of Origin",values=c("#9966cc", "#FFaaaa", "#3399FF")) + 
+  ggtitle("") + ylab(" ") + xlab("F1") + theme_bw() + 
+  geom_hline(aes(yintercept=306.9600), color="black", linetype="dashed")  + 
+  scale_y_continuous(limits=c(100, 800)) + 
+  theme(legend.key.size =  unit(2, "in"), legend.text = element_text(size=28), legend.title = element_text(size=28, face="bold"), axis.text=element_text(size=25), axis.text.x = element_blank(), axis.ticks.x = element_blank(), axis.title.x = element_text(size=30), plot.title = element_text(size = rel(3), hjust = 0.5)) + 
+  geom_signif(annotations = c("", "", ""), y_position = c(700, 730, 790), xmin=c(0.75, 1, 0.75), xmax=c(1, 1.25, 1.25), color="gray43", size=1.1, textsize=14, tip_length = 0.02, vjust=0.25) + 
+  annotate("text", 0.75, y = 300, label = "", cex=14) + 
+  annotate("text", 1, y = 420, label = "", cex=14) + 
+  annotate("text", 1.25, y = 1.1, label = "", cex=14) + 
+  annotate("text", 1.425, y = 100, label = "g", cex=16) 
+F.1.N.MPB.Fit.plot
+
+F.2.N.MPB.Fit.plot <- ggplot(subset(NFitplotData, Sex=="female" & Crosses==c("Parentaline", "Matriline", "Patriline") & variable=="Fitness" & Generation=="F2"), aes(x=variable, y=value, fill=Crosses)) +
+  geom_boxplot() + geom_rug(data=subset(CFitplotData, Sex=="female" & variable=="Fitness" & Generation=="F2"), aes(x= variable, y=value), inherit.aes = F, sides="l") + 
+  scale_fill_manual("Parent of Origin",values=c("#9966cc", "#FFaaaa", "#3399FF")) + 
+  ggtitle("") + ylab(" ") + xlab("F2") + theme_bw() + 
+  geom_hline(aes(yintercept=408.6000), color="black", linetype="dashed")  + 
+  scale_y_continuous(limits=c(100, 800)) + 
+  theme(legend.key.size =  unit(1, "in"), legend.text = element_text(size=18), legend.title = element_text(size=18, face="bold"), axis.text=element_text(size=25), axis.text.x = element_blank(), axis.ticks.x = element_blank(), axis.title.x = element_text(size=30), plot.title = element_text(size = rel(3), hjust = 0.5)) + 
+  geom_signif(annotations = c("", "", ""), y_position = c(700, 730, 790), xmin=c(0.75, 1, 0.75), xmax=c(1, 1.25, 1.25), color="gray43", size=1.1, textsize=14, tip_length = 0.02, vjust=0.25) + 
+  annotate("text", 0.75, y = 300, label = "", cex=14) + 
+  annotate("text", 1, y = 420, label = "", cex=14) + 
+  annotate("text", 1.25, y = 1.1, label = "", cex=14) + 
+  annotate("text", 1.425, y = 100, label = "h", cex=16) 
+F.2.N.MPB.Fit.plot
+
+F.3.N.MPB.Fit.plot <- ggplot(subset(NFitplotData, Sex=="female" & Crosses==c("Parentaline", "Matriline", "Patriline") & variable=="Fitness" & Generation=="F3"), aes(x=variable, y=value, fill=Crosses)) +
+  geom_boxplot() + geom_rug(data=subset(CFitplotData, Sex=="female" & variable=="Fitness" & Generation=="F3"), aes(x= variable, y=value), inherit.aes = F, sides="l") + 
+  scale_fill_manual("Parent of Origin",values=c("#9966cc", "#FFaaaa", "#3399FF")) + 
+  ggtitle("") + ylab(" ") + xlab("F3") + theme_bw() + 
+  geom_hline(aes(yintercept=327.0800), color="black", linetype="dashed")  + 
+  scale_y_continuous(limits=c(100, 800)) + 
+  theme(legend.key.size =  unit(1, "in"), legend.text = element_text(size=18), legend.title = element_text(size=18, face="bold"), axis.text=element_text(size=25), axis.text.x = element_blank(), axis.ticks.x = element_blank(), axis.title.x = element_text(size=30), plot.title = element_text(size = rel(3), hjust = 0.5)) + 
+  geom_signif(annotations = c("", "", ""), y_position = c(700, 730, 790), xmin=c(0.75, 1, 0.75), xmax=c(1, 1.25, 1.25), color="gray43", size=1.1, textsize=14, tip_length = 0.02, vjust=0.25) + 
+  annotate("text", 0.75, y = 300, label = "", cex=14) + 
+  annotate("text", 1, y = 420, label = "", cex=14) + 
+  annotate("text", 1.25, y = 1.1, label = "", cex=14) + 
+  annotate("text", 1.425, y = 100, label = "i", cex=16) 
+F.3.N.MPB.Fit.plot
+
+mylegend<-g_legend(F.1.N.MPB.Fit.plot)
+
+Fit.F.N.plot <- grid.arrange(arrangeGrob(F.1.N.MPB.Fit.plot + theme(legend.position="none"), F.2.N.MPB.Fit.plot + theme(legend.position="none"), F.3.N.MPB.Fit.plot + theme(legend.position="none"), ncol=3, top=textGrob("NSD Females: Fitness", gp = gpar(fontface=2, fontsize=40)), bottom=textGrob("", gp = gpar(fontface=1, fontsize=25)), left=textGrob("# of Offspring", rot=90, gp = gpar(fontface=1, fontsize=35))), mylegend, ncol=2, widths=c(10,2))
+
+ggsave("NSD F1-3 Fitness (rug).png", Fit.F.N.plot, width = 30, height = 10, units = "in")
+
+
+
+# FitTaY.F.N.plot <- grid.arrange(arrangeGrob(F.1.N.MPB.Y.plot + theme(legend.position="none"), F.2.N.MPB.Y.plot + theme(legend.position="none"), F.3.N.MPB.Y.plot + theme(legend.position="none"), F.1.N.MPB.Ta.plot + theme(legend.position="none"), F.2.N.MPB.Ta.plot + theme(legend.position="none"), F.3.N.MPB.Ta.plot + theme(legend.position="none"), F.1.N.MPB.Fit.plot + theme(legend.position="none"), F.2.N.MPB.Fit.plot + theme(legend.position="none"), F.3.N.MPB.Fit.plot + theme(legend.position="none"), ncol=3, top=textGrob("NSD Female Offspring Responses", gp = gpar(fontface=2, fontsize=40)), bottom=textGrob("", gp = gpar(fontface=1, fontsize=25)), left=textGrob("# of Offspring                                            Triglycerides/Fly Weight                                            Glycogen/Fly Weight", rot=90, gp = gpar(fontface=1, fontsize=35))), mylegend, ncol=2, widths=c(10,2))
+# 
+# ggsave("NSD F1_3 Glyc TAG Fit (rug)2.png", FitTaY.F.N.plot, width = 30, height = 30, units = "in")
+
+```
+Correlations for TAG vs Fit Data
+```{r}
+Data <- read.csv(text=getURL("https://raw.githubusercontent.com/cemborski/Parent-of-Origin-Effects-on-Transgenerational-Inheritance-in-Drosophila-melanogaster/master/data.csv"), header=T)
+
+head(data)
+
+data <- Data[,c("Generation", "Crosses", "Treatment", "Exposure", "Sex", "TAG", "Fitness")]
+data <- data %>% filter(grepl("female", Sex))
+data <- data %>% filter(grepl("NSD", Treatment))
+data <- data[complete.cases(data),]
+data$smooth <- rep("1", length(data$Generation))
+
+cor.test(data$TAG, data$Fitness)
+cor.test(Data$TAG, Data$Fitness)
+
+
+#Additional analysis:
+# TAGvFit.p <- ggplot(Data,aes(x=TAG, y=Fitness, color=Treatment, shape=Generation)) + 
+#   geom_point(size=3, alpha=0.5) + 
+#   theme_bw()  
+# TAGvFit.p
+# 
+# library(RCurl)
+# library(tidyverse)
+# library(broom) # tidy
+# library(drc) # dose response
+# library(psych) # matrix correlation
+# library(devtools)
+# library(ggbiplot) # FROM install_github("ggbiplot", "vqv/ggbiplot")
+# 
+# data <- read.csv(text=getURL("https://raw.githubusercontent.com/cemborski/Parent-of-Origin-Effects-on-Transgenerational-Inheritance-in-Drosophila-melanogaster/master/data.csv"), header=T)
+# 
+# # check dose response
+# m.ll3 <- drm(Fitness ~ TAGwt, data=data %>% mutate(TAGwt = TAG/Fat.Weight) %>% na.omit, fct = LL.3())
+# mselect(m.ll3, list(LL.3(), LL.5(), W1.3(), W1.4(), W2.4(), baro5()), linreg = TRUE)
+# ## linear model is the best
+# 
+# 
+# # trying to look at combinations between variables
+# dat2 <- data %>% mutate(glu = Glucose/Sugar.Weight, tre = Trehalose/Sugar.Weight, gly = Glycogen/Sugar.Weight, tag = TAG/Fat.Weight) 
+# dat2 %>% dplyr::select(gly, tre, glu, tag, Fitness) %>% corr.test()
+# dat2 %>% dplyr::select(tag, Fitness, Treatment) %>% group_by(Treatment) %>% do(tidy(cor.test(.$tag, .$Fitness,)))
+# dat2 %>% dplyr::select(tre, Fitness, Treatment) %>% group_by(Treatment) %>% do(tidy(cor.test(.$tre, .$Fitness,)))
+# 
+# ggplot(dat2, aes(Treatment, Fitness)) + geom_boxplot()
+# ggplot(dat2, aes(Treatment, TAG/Fat.Weight)) + geom_boxplot()
+# tag.aov <- aov(TAG/Fat.Weight ~ Treatment, data = dat2)
+# summary(tag.aov)
+# TukeyNSD(tag.aov, "Treatment")
+# 
+# 
+# pca.all <- dat2 %>% dplyr::select(gly, tre, glu, tag) %>% na.omit %>% prcomp(scale. = T)
+# summary(pca.all)
+
+
